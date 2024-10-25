@@ -12,7 +12,7 @@ class MPCQuadrupedCyclic(MPCOptConfig):
     opt_dt_scale : Tuple[float, float] = (0.75, 1.25)
     replanning_freq : int = 20
     interpolation_mode : str = "linear"
-    Kp : float = 1.
+    Kp : float = 50.
     Kd : float = 1.
     # Solver config
     max_iter : int = 1

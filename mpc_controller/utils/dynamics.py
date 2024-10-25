@@ -37,12 +37,10 @@ class QuadrupedDynamics(FloatingBaseDynamics):
         for f in self.feet:
             f.setup(problem)
         super().setup(problem)
-        problem.add_cost(self.base_cost)
-        problem.add_cost(self.joint_cost)
+        problem.add_cost(self.base_cost, terminal=True)
+        problem.add_cost(self.joint_cost, terminal=True)
         problem.add_cost(self.acc_cost)
-        problem.add_cost(self.swing_cost)
-        problem.add_cost_terminal(self.swing_cost)
-        problem.add_cost_terminal(self.base_cost)
+        problem.add_cost(self.swing_cost, terminal=True)
 
     def get_hg(self):
         return self.h
