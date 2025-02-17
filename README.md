@@ -3,6 +3,7 @@ Atarilab NMPC
 
 ## Project Description
 ATARI_NMPC is a Nonlinear Model Predictive Control (NMPC) framework designed for quadruped robots. It leverages the Acados solver for efficient optimization and Pinocchio for robot dynamics. The framework is modular, allowing easy adaptation to different quadruped robots by configuring URDF paths, gait parameters, and control settings.
+This branch was created and modified to adapt NMPC for controlling bipedal robots in a similar manner. Incremental modifications have been made to some source files in the main and contact_tamp directories, primarily by inheriting and creating subclasses to redefine functions while preserving as much of the original quadruped-specific definitions and code implementations as possible. The specific modifications are clearly outlined in the latter part of the README.
 
 ## Project Dependencies
 - Conda environment is provided in `environment.yml`
@@ -103,21 +104,52 @@ To implement the MPC on a new robot, follow these steps:
 Use `print_info` argument of the MPC for debugging purposes.
 
 
-## TODO
+## Change for Biped
+**Closed loop is not properly working yet, work in progress**
 
-### Solver
-- [ ] euler to tengent space orientation representation
-- [ ] other contact model (e.g. humanoid feet)
-- [ ] linearize cone constraint, see if performance improved
-  
-### Code optimzation
-- [x] use acados `set_flat` to init the solver
-- [ ] eventually C++ implementation
-
-### MPC
-- [ ] keyboard velocity control
-- [ ] gait switching
-- [ ] tune better `horizon`, `n_nodes`, and `qp_iter` in `MPCConfigOpt`. Seems that 1s horizon is too much.
-- [ ] try with dt time optimization with `enable_time_opt = True` (this needs to be fixed)
-- [ ] add a plot comparing planed state and robot state.
-- [ ] add new robots 
+### mpc.py
+Biped Configuration:
+Switched from quadruped to biped by importing and using get_biped_config and BipedAcadosSolver, and updated the default gait name to "trot_biped".
+Contact Planner Adjustments:
+Modified parameters for the "raibert" contact planner, notably increasing the foot size from 0.0085 to 0.02 (with a TODO note for review).
+State Reference Update:
+Expanded base_ref_vel_tracking from a 6-element to a 12-element vector to match the biped model requirements.
+### config_abstract.py
+remove the assertion of W_acc is 12
+### mpc_cost.py
+Add cost weight for biped control
+### mpc_gait.py
+Add biped trot gait
+### mpc_opt.py
+Add MPCCyclicBiped
+### utils.py
+Add get_biped_config
+### solver.py
+Dynamics Model:
+Replace the quadruped dynamics with a biped version to accommodate different state and contact models.
+Solver & Config:
+Switch from quadruped-specific acados solver and configuration to biped-specific ones.
+Cost & Constraints:
+Adjust cost weights and contact restrictions to reflect biped locomotion characteristics.
+Reference Setup:
+Update the computation of base and joint references, and adjust initial feet positions for the biped stance.
+### main.py
+Biped Model Update:
+Changed feet frame names and file paths (URDF/XML) to reference the biped robot.
+Mujoco Integration:
+Created an MjModel from the biped XML and initialized the joint state accordingly.
+Controller Initialization:
+Instantiated the MPC controller with the biped-specific joint reference and configuration.
+CLI & Mode Adjustments:
+Updated default simulation mode and arguments for biped testing.
+### contact_tamp
+    Src folder:
+    Add the model of G1 with removed hand
+    point_contact.py:
+    Add defination of plane contact as following changes
+        Linear Constraint:
+        Calculates the signed distance between the contact point and the plane along the plane normal, then extracts the tangential (projected) velocity error—similar to point contact.
+        Angular Constraint:
+        Computes a rotational error by taking the logarithm of the contact frame’s rotation matrix (pin.log3(R_foot)) and scales it by a gain. It then also considers the angular velocity error of the contact frame.
+        Concatenation:
+        Linear and angular components are vertically concatenated to form a comprehensive kinematic constraint that ensures both proper foot placement and orientation relative to the contact plane.

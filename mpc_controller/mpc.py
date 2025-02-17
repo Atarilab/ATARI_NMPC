@@ -13,9 +13,9 @@ import traceback
 from mj_pin.abstract import PinController
 from .utils.interactive import SetVelocityGoal
 from .utils.contact_planner import RaiberContactPlanner, CustomContactPlanner, ContactPlanner
-from .utils.solver import QuadrupedAcadosSolver
+from .utils.solver import QuadrupedAcadosSolver, BipedAcadosSolver
 from .utils.profiling import time_fn, print_timings
-from .config.quadruped.utils import get_quadruped_config
+from .config.quadruped.utils import get_quadruped_config,get_biped_config
 
 class LocomotionMPC(PinController):
     CONTACT_PLANNERS = ["raibert", "custom"]
@@ -28,7 +28,7 @@ class LocomotionMPC(PinController):
                  path_urdf : str,
                  feet_frame_names : List[str],
                  robot_name : str,
-                 gait_name: str = "trot",
+                 gait_name: str = "trot_biped",
                  joint_ref : np.ndarray = None,
                  interactive_goal : bool = False,
                  sim_dt : float = 1.0e-3,
@@ -43,8 +43,8 @@ class LocomotionMPC(PinController):
         self.print_info = print_info
         self.height_offset = height_offset
         # Solver
-        self.config_gait, self.config_opt, self.config_cost = get_quadruped_config(gait_name, robot_name)
-        self.solver = QuadrupedAcadosSolver(
+        self.config_gait, self.config_opt, self.config_cost = get_biped_config(gait_name, robot_name)
+        self.solver = BipedAcadosSolver(
             path_urdf,
             feet_frame_names,
             self.config_opt,
@@ -82,9 +82,9 @@ class LocomotionMPC(PinController):
                 self.solver.dt_nodes,
                 self.config_gait,
                 offset_hip_b,
-                y_offset=0.02,
+                y_offset=0.02,#TODO
                 x_offset=0.04,
-                foot_size=0.0085,
+                foot_size=0.02,
                 cache_cnt=False
                 )
             self.restrict_cnt = True

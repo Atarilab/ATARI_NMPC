@@ -12,6 +12,15 @@ class QuadrupedGaitConfig(GaitConfig):
         assert len(self.phase_offset) == self.n_eeff, f"phase_offset must be of length {self.n_eeff}"
 
 @dataclass
+class BipedGaitConfig(GaitConfig):
+    n_eeff: int = 2  # Number of end-effectors (2 legs)
+    
+    def __post_init__(self):
+        super().__post_init__()
+        assert len(self.stance_ratio) == self.n_eeff, f"stance_ratio must be of length {self.n_eeff}"
+        assert len(self.phase_offset) == self.n_eeff, f"phase_offset must be of length {self.n_eeff}"
+
+@dataclass
 class QuadrupedTrot(QuadrupedGaitConfig):
     gait_name: str = "trot"
     nominal_period: float = 0.5
@@ -64,7 +73,15 @@ class QuadrupedBound(QuadrupedGaitConfig):
     phase_offset: np.ndarray = field(default_factory=lambda: np.array([0.0, 0.5, 0.5, 0.0]))
     nom_height: float = 0.05
     step_height: float = 0.32
-
+@dataclass
+class BipedTrot(BipedGaitConfig):
+    gait_name: str = "trot_biped"
+    nominal_period: float = 0.7
+    stance_ratio: np.ndarray = field(default_factory=lambda: np.array([0.6, 0.6]))
+    phase_offset: np.ndarray = field(default_factory=lambda: np.array([0.0, 0.5]))
+    nom_height: float = 0.75
+    step_height: float = 0.15
+    
 class GaitConfigFactory:
     AVAILABLE_GAITS = {
         cfg.gait_name.lower(): cfg()
@@ -75,6 +92,7 @@ class GaitConfigFactory:
             QuadrupedCrawl,
             QuadrupedPace,
             QuadrupedBound,
+            BipedTrot,
         ]
     }
 

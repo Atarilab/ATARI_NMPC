@@ -24,3 +24,24 @@ class MPCQuadrupedCyclic(MPCOptConfig):
     max_iter : int = 1
     # Maximum qp iteration for one SQP step 
     max_qp_iter: int = 6
+
+@dataclass
+class MPCCyclicBiped(MPCOptConfig):
+    ### MPC Config
+    # Time horizon (s)
+    time_horizon : float = 1.
+    # Number of optimization nodes
+    n_nodes : int = 50
+    # Replanning frequency
+    replanning_freq : int = 20
+    # gain on joint position for torque PD
+    Kp : float = 40
+    # gain on joint velocities for torque PD
+    Kd : float = 5
+    ### Solver Config
+    # Recompile solver
+    recompile: bool = True
+    # Solver maximum SQP iterations
+    max_iter : int = 1
+    # Maximum qp iteration for one SQP step 
+    max_qp_iter: int = 6
