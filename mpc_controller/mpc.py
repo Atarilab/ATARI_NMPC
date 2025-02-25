@@ -28,7 +28,7 @@ class LocomotionMPC(PinController):
                  path_urdf : str,
                  feet_frame_names : List[str],
                  robot_name : str,
-                 gait_name: str = "trot_biped",
+                 gait_name: str = "still_stand",
                  joint_ref : np.ndarray = None,
                  interactive_goal : bool = False,
                  sim_dt : float = 1.0e-3,
@@ -84,10 +84,10 @@ class LocomotionMPC(PinController):
                 offset_hip_b,
                 y_offset=0.02,#TODO
                 x_offset=0.04,
-                foot_size=0.02,
+                foot_size=-0.03,
                 cache_cnt=False
                 )
-            self.restrict_cnt = True
+            self.restrict_cnt = True  
             
         elif contact_planner.lower() == "custom":
             self.contact_planner = CustomContactPlanner(
@@ -106,7 +106,7 @@ class LocomotionMPC(PinController):
         # Set params
         self.Kp = self.solver.config_opt.Kp
         self.Kd = self.solver.config_opt.Kd
-
+        self.com_z_traj = [] # Norm Height Tuning
         self.sim_dt = sim_dt
         self.dt_nodes : float = self.solver.dt_nodes
         self.replanning_freq : int = self.config_opt.replanning_freq
@@ -125,7 +125,7 @@ class LocomotionMPC(PinController):
         self.q_plan : np.ndarray = None
         self.v_plan : np.ndarray = None
         self.a_plan : np.ndarray = None
-        self.f_plan : np.ndarray = None
+        self.w_plan : np.ndarray = None
         self.q_opt : np.ndarray = None
         self.v_opt : np.ndarray = None
         self.time_traj : np.ndarray = np.array([])
@@ -134,7 +134,8 @@ class LocomotionMPC(PinController):
         self.q_full = []
         self.v_full = []
         self.a_full = []
-        self.f_full = []
+        # self.f_full = []
+        self.w_full = []
         self.tau_full = []
         self.dt_full = []
 
@@ -175,7 +176,8 @@ class LocomotionMPC(PinController):
         self.q_full.append(self.q_plan[self.delay : self.plan_step])
         self.v_full.append(self.v_plan[self.delay : self.plan_step])
         self.a_full.append(self.a_plan[self.delay : self.plan_step])
-        self.f_full.append(self.f_plan[self.delay : self.plan_step])
+        # self.f_full.append(self.f_plan[self.delay : self.plan_step])
+        self.w_full.append(self.w_plan[self.delay : self.plan_step])
 
     def set_command(self, v_des: np.ndarray = np.zeros((3,)), w_yaw: float = 0.) -> None:
         """
@@ -317,6 +319,8 @@ class LocomotionMPC(PinController):
         
         self.v_des : np.ndarray = np.zeros(3)
         self.w_des : float = np.zeros(3)
+        #self.w_des: np.ndarray = np.zeros(3)
+        
 
         self.diverged : bool = False
     
@@ -329,6 +333,7 @@ class LocomotionMPC(PinController):
         """
         # Update model state based on current MuJoCo state
         q, v = self.solver.dyn.convert_from_mujoco(q_mj, v_mj)
+        print(f"[DEBUG] In optimize: q {q}, v {v}")
         self.solver.dyn.update_pin(q, v)
 
         # Update goal
@@ -338,6 +343,8 @@ class LocomotionMPC(PinController):
         # Contact parameters
         cnt_sequence = self.contact_planner.get_contacts(self.current_opt_node, self.config_opt.n_nodes+1)
         swing_peak = None
+        com_xyz = pin.centerOfMass(self.solver.dyn.pin_model, self.solver.dyn.pin_data)
+        self.com_z_traj.append(com_xyz[2])
         if self.config_opt.opt_peak:
             swing_peak = self.contact_planner.get_peaks(self.current_opt_node, self.config_opt.n_nodes+1)
         cnt_locations = None
@@ -351,6 +358,7 @@ class LocomotionMPC(PinController):
             base_ref, base_ref_e = self.compute_base_ref_cnt_restricted(q_mj, cnt_locations)
         else:
             base_ref, base_ref_e = self.compute_base_ref_vel_tracking(q_mj)
+        
 
         self.solver.init(
             self.current_opt_node,
@@ -364,9 +372,12 @@ class LocomotionMPC(PinController):
             cnt_locations,
             swing_peak,
             )
-        q_sol, v_sol, a_sol, f_sol, dt_sol = self.solver.solve()
+        # q_sol, v_sol, a_sol, f_sol, dt_sol = self.solver.solve()
+        q_sol, v_sol, a_sol, w_sol, dt_sol = self.solver.solve()
+        
+        
 
-        return q_sol, v_sol, a_sol, f_sol, dt_sol
+        return q_sol, v_sol, a_sol, w_sol, dt_sol
 
     @time_fn("interpolate_trajectory")
     def interpolate_trajectory(
@@ -406,7 +417,7 @@ class LocomotionMPC(PinController):
                         q_sol : np.ndarray,
                         v_sol : np.ndarray,
                         a_sol : np.ndarray,
-                        f_sol : np.ndarray,
+                        w_sol : np.ndarray,
                         dt_sol : np.ndarray,
                         ) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
         """
@@ -417,22 +428,23 @@ class LocomotionMPC(PinController):
         # Interpolate plan at sim_dt intervals
         input_full = np.concatenate((
             a_sol,
-            f_sol.reshape(-1, self.n_foot * 3),
+            w_sol.reshape(-1, self.n_foot * 6),
         ), axis=-1)
 
         time_traj = np.cumsum(dt_sol)
         time_traj = np.concatenate(([0.], time_traj))
 
         q_plan, v_plan = self.interpolate_trajectory_with_derivatives(time_traj, q_sol, v_sol, a_sol)
+        print(f"[DEBUG] After interpolate_trajectory_with_derivatives: q_plan shape: {q_plan.shape}, v_plan shape: {v_plan.shape}")
         input_full_interp = self.interpolate_trajectory(input_full, time_traj[:-1], kind='zero')
-        a_plan, f_plan = np.split(
+        a_plan, w_plan = np.split(
             input_full_interp,
             [a_sol.shape[-1]],
                 axis=-1
         )
-        f_plan = f_plan.reshape(-1, self.n_foot, 3)
-
-        return q_plan, v_plan, a_plan, f_plan, time_traj
+        w_plan = w_plan.reshape(-1, self.n_foot, 6)
+        print(f"[DEBUG] Interpolated a_plan shape: {a_plan.shape}, w_plan shape: {w_plan.shape}")
+        return q_plan, v_plan, a_plan, w_plan, time_traj
             
     def interpolate_trajectory_with_derivatives(
         self,
@@ -495,15 +507,15 @@ class LocomotionMPC(PinController):
                 # Find the corresponding optimization node
                 self.current_opt_node += bisect_right(time_traj, sim_time - self.sim_dt)
 
-                q_sol, v_sol, a_sol, f_sol, dt_sol = self.optimize(q_mj, v_mj)
+                q_sol, v_sol, a_sol, w_sol, dt_sol = self.optimize(q_mj, v_mj)
 
                 (
                 self.q_plan,
                 self.v_plan,
                 self.a_plan,
-                self.f_plan,
+                self.w_plan,
                 time_traj,
-                ) = self.interpolate_sol(q_sol, v_sol, a_sol, f_sol, dt_sol)
+                ) = self.interpolate_sol(q_sol, v_sol, a_sol, w_sol, dt_sol)
 
                 time_traj += sim_time
                 self.plan_step = 1
@@ -535,12 +547,15 @@ class LocomotionMPC(PinController):
         # Get state in pinocchio format
         q_mj, v_mj = mj_data.qpos, mj_data.qvel
         
+        
         # Increment the optimization node every dt_nodes
         # TODO: This may be changed in case of dt time optimization
         # One may update the opt node according to the last dt results
         sim_time = round(mj_data.time, 4)
+        print(f"[DEBUG] sim_time: {sim_time}, current_opt_node: {self.current_opt_node}, sim_step: {self.sim_step}")
         if sim_time >= (self.current_opt_node+1) * self.dt_nodes:
             self.current_opt_node += 1
+            print(f"[DEBUG] Updated current_opt_node: {self.current_opt_node}")
 
         # Start a new optimization asynchronously if it's time to replan
         if self._replan():
@@ -554,7 +569,7 @@ class LocomotionMPC(PinController):
             self.time_start_plan = sim_time
             self.optimize_future = self.executor.submit(self.optimize, q_mj, v_mj)
             self.plan_submitted = True
-
+            print(f"[DEBUG] Optimize future submitted at sim_time: {sim_time}")
             if self.print_info:
                 print()
                 print("#"*10, "Replan", "#"*10)
@@ -572,15 +587,15 @@ class LocomotionMPC(PinController):
             self.sim_step == 0):
             try:
                 # Retrieve new plan from future
-                q_sol, v_sol, a_sol, f_sol, dt_sol = self.optimize_future.result()
-
+                q_sol, v_sol, a_sol, w_sol, dt_sol = self.optimize_future.result()
+                print(f"[DEBUG] Optimize future result shapes: q_sol {q_sol.shape}, v_sol {v_sol.shape}, a_sol {a_sol.shape}, w_sol {w_sol.shape}, dt_sol {dt_sol.shape}")
                 # Record trajectory
                 if self.sim_step > 0:
                     self._record_plan()
 
                 # Interpolate plan at sim_dt interval
-                self.q_plan, self.v_plan, self.a_plan, self.f_plan, self.time_traj = self.interpolate_sol(q_sol, v_sol, a_sol, f_sol, dt_sol)
-
+                self.q_plan, self.v_plan, self.a_plan, self.w_plan, self.time_traj = self.interpolate_sol(q_sol, v_sol, a_sol, w_sol, dt_sol)
+                print(f"[DEBUG] Interpolated plan shapes: q_plan {self.q_plan.shape}, v_plan {self.v_plan.shape}, a_plan {self.a_plan.shape}, w_plan {self.w_plan.shape}")
                 # Apply delay
                 if (self.solve_async and self.sim_step != 0):
                     replanning_time = sim_time - self.start_time
@@ -604,12 +619,19 @@ class LocomotionMPC(PinController):
                 time.sleep(0.1)
         
         q, v = self.solver.dyn.convert_from_mujoco(q_mj, v_mj)
+        
+        idx = min(self.plan_step, self.a_plan.shape[0] - 1)
+        if idx != self.plan_step:
+            print(f"[DEBUG] Clamping plan_step from {self.plan_step} to {idx}")
+        
+        
         torques = self.solver.dyn.id_torques(
             q,
             v,
-            self.a_plan[self.plan_step],
-            self.f_plan[self.plan_step],
+            self.a_plan[idx],
+            self.w_plan[idx],
         )
+        print(f"[DEBUG] Computed torques: {torques}")
 
         self.torques_dof[-self.nu:] = (torques +
                       self.Kp * (self.q_plan[self.plan_step, -self.nu:] - q_mj[-self.nu:]) +
@@ -662,13 +684,20 @@ class LocomotionMPC(PinController):
                             'q', 'v', 'a', 
                             'f', 'dt', 'tau'.
         """
-        # Check if the plan name is valid
-        var_name += "_full"
-        if not hasattr(self, var_name):
-            raise ValueError(f"Plan '{var_name}' does not exist. Choose from: 'q', 'v', 'a', 'f', 'dt', 'tau'.")
-
+        # 兼容处理：如果传入 "f"（忽略大小写和前后空白），自动映射为 "w"
+        if var_name.strip().lower() == "f":
+            print("[DEBUG] Mapping 'f' to 'w' for compatibility")
+            var_name = "w"
+            
+        valid_vars = ['q', 'v', 'a', 'w', 'dt', 'tau']
+        if var_name not in valid_vars:
+            raise ValueError(f"Plan '{var_name}' does not exist. Choose from: {valid_vars}.")
+        var_name_full = var_name + "_full"
+        if not hasattr(self, var_name_full):
+            raise ValueError(f"Plan '{var_name_full}' does not exist. Choose from: {valid_vars}.")
+        
         # Get the selected plan and the time intervals (dt)
-        plan = getattr(self, var_name)
+        plan = getattr(self, var_name_full)
         plan = np.vstack(plan)
 
         N = len(plan)
@@ -688,9 +717,9 @@ class LocomotionMPC(PinController):
         # Plot each dimension of the plan on a separate subplot
         for i in range(num_dimensions):
             axs[i].plot(time, plan[:, i])
-            axs[i].set_title(f'{var_name} dimension {i+1}')
+            axs[i].set_title(f'{var_name_full} dimension {i+1}')
             axs[i].set_xlabel('Time (s)')
-            axs[i].set_ylabel(f'{var_name} values')
+            axs[i].set_ylabel(f'{var_name_full} values')
             axs[i].grid(True)
 
         # Turn off unused subplots if there are any
@@ -698,6 +727,8 @@ class LocomotionMPC(PinController):
             fig.delaxes(axs[i])
 
         plt.tight_layout()
+
+
     
     def show_plots(self):
         plt.show()
@@ -709,3 +740,9 @@ class LocomotionMPC(PinController):
 
     def __del__(self):
         if self.velocity_goal: self.velocity_goal._stop_update_thread()
+    
+    def get_com_z_trajectory(self) -> np.ndarray:
+        """
+        FOR Norm Height
+        """
+        return np.array(self.com_z_traj)

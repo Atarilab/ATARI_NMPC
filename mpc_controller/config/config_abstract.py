@@ -134,5 +134,6 @@ class MPCCostConfig:
         assert (len(self.W_swing) == len(self.W_cnt_f_reg) and
                 len(self.W_swing) == len(self.W_foot_pos_constr_stab)),\
                 "W_swing and W_foot should have the same length."
+        # Wrench Change        
         for i, foot_weight in enumerate(self.W_cnt_f_reg):
-            assert len(foot_weight) == 3, f"W_foot[{i}] must be of shape 3"
+            assert len(foot_weight) == 6, f"W_foot[{i}] must be of shape 6"

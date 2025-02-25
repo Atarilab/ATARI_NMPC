@@ -469,7 +469,7 @@ class BipedAcadosSolver(AcadosSolverHelper):
             mu_contact=0.8,            
             cnt_patch_restriction=True 
         )
-
+    
       
         dt_min, dt_max = self.config_opt.get_dt_bounds()
         self.dt_nodes = self.config_opt.get_dt_nodes()
@@ -532,7 +532,7 @@ class BipedAcadosSolver(AcadosSolverHelper):
 
 
         n_feet = len(self.dyn.feet)
-        self.f_sol = np.zeros((self.config_opt.n_nodes, n_feet, 3))
+        self.w_sol = np.zeros((self.config_opt.n_nodes, n_feet, 6))
         self.dt_node_sol = np.zeros((self.config_opt.n_nodes))
 
     def set_cost_weights(self):
@@ -556,7 +556,7 @@ class BipedAcadosSolver(AcadosSolverHelper):
 
             # Foot force regularization weights (for each foot)
             for i, foot_cnt in enumerate(self.dyn.feet):
-                self.data["W"][foot_cnt.f_reg.name] = np.array(self.config_cost.W_cnt_f_reg[i])
+                self.data["W"][foot_cnt.w_reg.name] = np.array(self.config_cost.W_cnt_f_reg[i])
 
                 # Foot displacement penalization
                 if self.restrict_cnt:
@@ -708,13 +708,13 @@ class BipedAcadosSolver(AcadosSolverHelper):
         # inputs
         self.inputs[self.dyn.a.name][:, :n_warm_start] = self.a_sol[start_node:].T
         for i, foot_cnt in enumerate(self.dyn.feet):
-            self.inputs[f"f_{foot_cnt.frame_name}_{self.dyn.name}"][:, :n_warm_start] = \
-                self.f_sol[start_node:, i, :].T
+            self.inputs[f"w_{foot_cnt.frame_name}_{self.dyn.name}"][:, :n_warm_start] = \
+                self.w_sol[start_node:, i, :].T
   
-            self.inputs[f"f_{foot_cnt.frame_name}_{self.dyn.name}"][:, n_warm_start:] = 0.
+            self.inputs[f"w_{foot_cnt.frame_name}_{self.dyn.name}"][:, n_warm_start:] = 0.
             if repeat_last:
-                self.inputs[f"f_{foot_cnt.frame_name}_{self.dyn.name}"][:, n_warm_start:] = \
-                    self.f_sol[-1, i, :].reshape(3,1)
+                self.inputs[f"w_{foot_cnt.frame_name}_{self.dyn.name}"][:, n_warm_start:] = \
+                    self.w_sol[-1, i, :].reshape(6,1)
 
         if self.enable_time_opt:
             self.inputs["dt"][:, :n_warm_start] = self.dt_node_sol[start_node:]
@@ -787,13 +787,13 @@ class BipedAcadosSolver(AcadosSolverHelper):
         self.h_sol       = self.states[self.dyn.h.name].T.copy()
         self.a_sol       = self.inputs[self.dyn.a.name].T.copy()
 
-        # forces => shape(n_nodes, n_feet, 3)
+        # wrenches => shape(n_nodes, n_feet, 6)
         n_feet = len(self.dyn.feet)
-        f_array = []
+        w_array = []
         for foot_cnt in self.dyn.feet:
-            arr = self.inputs[f"f_{foot_cnt.frame_name}_{self.dyn.name}"]
-            f_array.append(arr)
-        self.f_sol = np.array(f_array).transpose(2,0,1).copy()
+            arr = self.inputs[f"w_{foot_cnt.frame_name}_{self.dyn.name}"]
+            w_array.append(arr)
+        self.w_sol = np.array(w_array).transpose(2,0,1).copy()
 
         # dt
         if self.enable_time_opt:
@@ -801,7 +801,7 @@ class BipedAcadosSolver(AcadosSolverHelper):
         else:
             self.dt_node_sol = np.full((len(self.a_sol),), self.dt_nodes)
 
-        return self.q_sol_euler, self.v_sol_euler, self.a_sol, self.f_sol, self.dt_node_sol
+        return self.q_sol_euler, self.v_sol_euler, self.a_sol, self.w_sol, self.dt_node_sol
 
     def print_timings(self):
         print_timings(self.timings)

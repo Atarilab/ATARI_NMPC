@@ -31,13 +31,13 @@ class MPCCyclicBiped(MPCOptConfig):
     # Time horizon (s)
     time_horizon : float = 1.
     # Number of optimization nodes
-    n_nodes : int = 50
+    n_nodes : int = 80
     # Replanning frequency
     replanning_freq : int = 20
     # gain on joint position for torque PD
-    Kp : float = 40
+    Kp : float = 80
     # gain on joint velocities for torque PD
-    Kd : float = 5
+    Kd : float = 4.2
     ### Solver Config
     # Recompile solver
     recompile: bool = True

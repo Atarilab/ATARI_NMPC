@@ -79,8 +79,18 @@ class BipedTrot(BipedGaitConfig):
     nominal_period: float = 0.7
     stance_ratio: np.ndarray = field(default_factory=lambda: np.array([0.6, 0.6]))
     phase_offset: np.ndarray = field(default_factory=lambda: np.array([0.0, 0.5]))
-    nom_height: float = 0.75
+    nom_height: float = 0.788
     step_height: float = 0.15
+
+@dataclass
+class BipedStillStand(BipedGaitConfig):
+    gait_name: str = "still_stand"
+    nominal_period: float = 1.0  # 周期可以设置为任意值，因为不会切换状态
+    stance_ratio: np.ndarray = field(default_factory=lambda: np.array([1.0, 1.0]))  # 始终支撑
+    phase_offset: np.ndarray = field(default_factory=lambda: np.array([0.0, 0.0]))  # 相位无效
+    nom_height: float = 0.788 # 可以根据实际需求设置身体高度
+    step_height: float = 0.01  # 不抬脚
+
     
 class GaitConfigFactory:
     AVAILABLE_GAITS = {
@@ -93,6 +103,7 @@ class GaitConfigFactory:
             QuadrupedPace,
             QuadrupedBound,
             BipedTrot,
+            BipedStillStand,
         ]
     }
 
