@@ -168,7 +168,7 @@ class BipedDynamics (FloatingBaseDynamics):
                  urdf_path,
                  feet_frame_names: List[str],
                  cnt_patch_restriction: bool = False,
-                 mu_contact: float = 0.7,
+                 mu_contact: float = 0.9,
                  ):
         # Load pinocchio model
         self.__raw_model = loadModelImpl(urdf_path)

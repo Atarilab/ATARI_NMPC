@@ -35,9 +35,9 @@ class MPCCyclicBiped(MPCOptConfig):
     # Replanning frequency
     replanning_freq : int = 20
     # gain on joint position for torque PD
-    Kp : float = 80
+    Kp : float = 500
     # gain on joint velocities for torque PD
-    Kd : float = 4.2
+    Kd : float = 4
     ### Solver Config
     # Recompile solver
     recompile: bool = True

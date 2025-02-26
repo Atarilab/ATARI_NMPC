@@ -192,9 +192,9 @@ def run_open_loop(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run MPC simulations.")
-    parser.add_argument('--mode', type=str, default="traj_opt", choices=['traj_opt', 'open_loop', 'close_loop'], help='Mode to run the simulation.')
+    #parser.add_argument('--mode', type=str, default="traj_opt", choices=['traj_opt', 'open_loop', 'close_loop'], help='Mode to run the simulation.')
     #parser.add_argument('--mode', type=str, default="open_loop", choices=['traj_opt', 'open_loop', 'close_loop'], help='Mode to run the simulation.')
-    #parser.add_argument('--mode', type=str, default="close_loop", choices=['traj_opt', 'open_loop', 'close_loop'], help='Mode to run the simulation.')
+    parser.add_argument('--mode', type=str, default="close_loop", choices=['traj_opt', 'open_loop', 'close_loop'], help='Mode to run the simulation.')
     parser.add_argument('--sim_time', type=float, default=5, help='Simulation time.')
     parser.add_argument('--robot_name', type=str, default='g1', help='Name of the robot.')
     parser.add_argument('--record_dir', type=str, default='./data/', help='Directory to save recorded data.')

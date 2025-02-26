@@ -76,11 +76,11 @@ class QuadrupedBound(QuadrupedGaitConfig):
 @dataclass
 class BipedTrot(BipedGaitConfig):
     gait_name: str = "trot_biped"
-    nominal_period: float = 0.7
+    nominal_period: float = 0.5
     stance_ratio: np.ndarray = field(default_factory=lambda: np.array([0.6, 0.6]))
     phase_offset: np.ndarray = field(default_factory=lambda: np.array([0.0, 0.5]))
     nom_height: float = 0.788
-    step_height: float = 0.15
+    step_height: float = 0.2
 
 @dataclass
 class BipedStillStand(BipedGaitConfig):

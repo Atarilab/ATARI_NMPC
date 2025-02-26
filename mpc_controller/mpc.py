@@ -29,6 +29,7 @@ class LocomotionMPC(PinController):
                  feet_frame_names : List[str],
                  robot_name : str,
                  gait_name: str = "still_stand",
+                 #gait_name: str = "trot_biped",
                  joint_ref : np.ndarray = None,
                  interactive_goal : bool = False,
                  sim_dt : float = 1.0e-3,
