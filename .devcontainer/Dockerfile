@@ -191,7 +191,7 @@ RUN git clone https://github.com/acados/acados.git && \
     cd acados && \
     git submodule update --recursive --init && \
     mkdir -p build && cd build && \
-    cmake -DACADOS_WITH_QPOASES=ON -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=1 .. && \
+    cmake -DACADOS_WITH_QPOASES=ON -DACADOS_WITH_OPENMP=ON -DACADOS_NUM_THREADS=8 .. && \
     make install -j$(nproc) && \
     /bin/bash -c "source /home/$USERNAME/.venv/bin/activate && \
     pip install ../interfaces/acados_template"

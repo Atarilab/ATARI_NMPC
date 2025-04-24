@@ -15,6 +15,7 @@ STAND_UP_JOINT_POS = np.array([
     0.00571868, 0.608813, -1.21763, -0.00571868, 0.608813, -1.21763
 ], dtype=float)
 
+#    0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8,
 STAND_DOWN_JOINT_POS = np.array([
     0.0473455, 1.22187, -2.44375, -0.0473455, 1.22187, -2.44375, 0.0473455,
     1.22187, -2.44375, -0.0473455, 1.22187, -2.44375
@@ -23,9 +24,9 @@ STAND_DOWN_JOINT_POS = np.array([
 P_IMU_IN_BASE = np.array([-0.02557, 0, 0.04232])
 R_IMU_IN_BASE = np.eye(3)
 
-CONTROL_FREQ = 80
+CONTROL_FREQ = 100
 Kp = 30
-Kd = 1.8
+Kd = 2.25
 
 # Multiply gain on the real robot
 scale_gains = 1.5

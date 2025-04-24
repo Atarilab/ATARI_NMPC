@@ -17,8 +17,8 @@ class QuadrupedTrot(QuadrupedGaitConfig):
     nominal_period: float = 0.5
     stance_ratio: np.ndarray = field(default_factory=lambda: np.array([0.5, 0.5, 0.5, 0.5]))
     phase_offset: np.ndarray = field(default_factory=lambda: np.array([0.5, 0.0, 0.0, 0.5]))
-    nom_height: float = 0.35
-    step_height: float = 0.065
+    nom_height: float = 0.30
+    step_height: float = 0.05
 
 @dataclass
 class QuadrupedSlowTrot(QuadrupedGaitConfig):

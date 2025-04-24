@@ -59,7 +59,7 @@ class QuadrupedDynamics(FloatingBaseDynamics):
                 x=q_mj[4],
                 y=q_mj[5],
                 z=q_mj[6]).toRotationMatrix()
-        q[5:2:-1] = pin.rpy.matrixToRpy(R_WB)
+        q[3:6] = pin.rpy.matrixToRpy(R_WB)[::-1]
         q[6:] = q_mj[7:]
         # Convert velocties from MuJoCo to Pinocchio model format
         # MuJoCo is v global and w local

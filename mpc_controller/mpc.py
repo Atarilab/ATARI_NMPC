@@ -52,7 +52,8 @@ class LocomotionMPC(PinController):
             self.config_cost,
             height_offset,
             print_info,
-            compute_timings)
+            compute_timings,
+            config_opt.solver_name)
 
         super().__init__(pin_model=self.solver.dyn.pin_model)
 
@@ -108,7 +109,7 @@ class LocomotionMPC(PinController):
         # Set params
         self.Kp = self.solver.config_opt.Kp
         self.Kd = self.solver.config_opt.Kd
-        self.scale_joint = np.repeat([2., 1.5, 1], 4)
+        self.scale_joint = np.repeat([1., 1., 1], 4)
         self.sim_dt = sim_dt
         self.dt_nodes : float = self.solver.dt_nodes
         self.replanning_freq : int = self.config_opt.replanning_freq
@@ -116,7 +117,7 @@ class LocomotionMPC(PinController):
         self.solve_async : bool = solve_async
         self.compute_timings : bool = compute_timings
         self.interactive_goal : bool = interactive_goal
-        self.executor = ThreadPoolExecutor(max_workers=1)  # One thread for asynchronous optimization
+        self.executor = ThreadPoolExecutor(max_workers=4)  # One thread for asynchronous optimization
 
         # Init variables
         self.reset(reset_solver=False)
@@ -168,7 +169,6 @@ class LocomotionMPC(PinController):
         q0[-self.nu:] = self.joint_ref
         self.solver.dyn.update_pin(q0, v0)
         
-        
         # Counter variables and flags
         self.first_solve : bool = True
         self.diverged : bool = False
@@ -205,8 +205,8 @@ class LocomotionMPC(PinController):
         self.timings = defaultdict(list)
 
         # Multiprocessing
-        
         self.optimize_future: Future = Future()                # Store the future result of optimize
+        
         if hasattr(self, "executor"):
             if self.optimize_future.running():
                 self.executor.shutdown(wait=True, cancel_futures=True)
@@ -295,7 +295,7 @@ class LocomotionMPC(PinController):
         else:
             pos_ref = self.base_ref_vel_tracking[:3]
             yaw_ref = self.base_ref_vel_tracking[3]
-        yaw_ref = np.round(q[3], 2)
+        yaw_ref = q[3]
         pos_ref = np.round(q[:3], 2)
 
         base_ref_e[:2] = pos_ref[:2] + v_des_glob[:2] * t_horizon
@@ -428,9 +428,8 @@ class LocomotionMPC(PinController):
         Repeat for inputs.
         Linear interpolation for states.
         """
-        # time_traj = np.cumsum(dt_sol)
-        N = len(dt_sol)
-        time_traj = np.linspace(0, N * dt_sol[-1], N+1)
+        time_traj = np.cumsum(dt_sol)
+        time_traj = np.concatenate(([0.], time_traj))
         q_plan, v_plan = self.interpolate_trajectory_with_derivatives(time_traj, q_sol, v_sol, a_sol)
         return q_plan, v_plan
             
@@ -455,7 +454,7 @@ class LocomotionMPC(PinController):
         t_interpolated = np.linspace(time_traj[0], time_traj[-1], self.n_interp_plan)
         poly_pos = CubicHermiteSpline(time_traj, positions, velocities)
         interpolated_pos = poly_pos(t_interpolated)
-        a0 = np.zeros_like(velocities[0])
+        a0 = (velocities[1] - velocities[0]) / (time_traj[1] - time_traj[0])
         accelerations = np.concatenate((a0[None, :], accelerations))
         poly_vel = CubicHermiteSpline(time_traj, velocities, accelerations)
         interpolated_vel = poly_vel(t_interpolated)
@@ -511,7 +510,7 @@ class LocomotionMPC(PinController):
         return q_full_traj_arr
     
     def set_convergence_on_first_iter(self):
-        N_SQP_FIRST = 40
+        N_SQP_FIRST = 15
         if self.first_solve:
             self.solver.set_max_iter(N_SQP_FIRST)
             self.solver.set_nlp_tol(self.solver.config_opt.nlp_tol / 10.)
@@ -591,8 +590,8 @@ class LocomotionMPC(PinController):
                 # Apply delay, not for first iteration
                 if (self.solve_async and not self.first_solve):
                     replanning_time = t - self.start_time
-                    # replanning_time += 0.01
-                    self.delay = math.floor(replanning_time / self.sim_dt)
+                    # replanning_time -= 4.0e-3
+                    self.delay = math.ceil(replanning_time / self.sim_dt) - 1
                 else:
                     self.delay = 0
 
@@ -625,8 +624,8 @@ class LocomotionMPC(PinController):
             self.q_plan_full.append(q.copy())
             self.v_plan_full.append(v)
             torques_ff = self.solver.dyn.id_torques(
-                q,#self.q_plan[self.plan_step],
-                v,#self.v_plan[self.plan_step],
+                q, #self.q_plan[self.plan_step],
+                v, #self.v_plan[self.plan_step],
                 self.a_plan[self.plan_step],
                 self.f_plan[self.plan_step],
             )
@@ -736,7 +735,7 @@ class LocomotionMPC(PinController):
         print_timings(self.solver.timings)
 
     def __del__(self):
-        if hasattr(self, "executor"):
+        if self.executor:
             self.executor.shutdown(wait=True, cancel_futures=True)
             time.sleep(0.1)
             self.executor.shutdown(wait=False, cancel_futures=self.optimize_future.running())

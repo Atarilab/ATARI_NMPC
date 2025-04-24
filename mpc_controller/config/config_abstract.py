@@ -64,7 +64,8 @@ class MPCOptConfig():
     hpipm_mode : HPIPM_MODE = HPIPM_MODE.speed
     # use_cython in the solver solver
     use_cython: bool = False
-
+    # solver_name 
+    solver_name : str = "solver"
     # Outer loop SQP tolerance
     nlp_tol: float = 1.e-1
     # Inner loop interior point method tolerance

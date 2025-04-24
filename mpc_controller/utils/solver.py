@@ -12,8 +12,9 @@ from .transform import *
 from .profiling import time_fn, print_timings
 from mj_pin.utils import pin_frame_pos
 
+SOLVER_NAME = "quadruped_solver"
+
 class QuadrupedAcadosSolver(AcadosSolverHelper):
-    NAME = "quadruped_solver"
 
     def __init__(self,
                  path_urdf : str,
@@ -23,6 +24,7 @@ class QuadrupedAcadosSolver(AcadosSolverHelper):
                  height_offset : float = 0.,
                  print_info : bool = False,
                  compute_timings : bool = True,
+                 name : str = SOLVER_NAME,
                  ):
         self.feet_frame_names = feet_frame_names
         self.config_opt = config_opt
@@ -30,12 +32,14 @@ class QuadrupedAcadosSolver(AcadosSolverHelper):
         self.height_offset = height_offset
         self.print_info = print_info
         self.restrict_cnt : bool = False
+        self.solver_name = name
 
         self.dyn = QuadrupedDynamics(
             path_urdf,
             self.feet_frame_names,
             True,
-            mu_contact=0.7
+            mu_contact=0.7,
+            torque_limit=False
             )
 
         dt_min, dt_max = self.config_opt.get_dt_bounds()
@@ -49,7 +53,7 @@ class QuadrupedAcadosSolver(AcadosSolverHelper):
         super().__init__(
             problem,
             self.config_opt.n_nodes,
-            QuadrupedAcadosSolver.NAME,
+            self.solver_name,
             self.config_cost.reg_eps,
             self.config_cost.reg_eps_e,
             )
@@ -127,7 +131,7 @@ class QuadrupedAcadosSolver(AcadosSolverHelper):
             self.data["W_e"][foot_cnt.swing_cost.name][:] = self.config_cost.W_swing[i]
             # Eeff orientation cost
             self.data["W"][foot_cnt.eeff_orientation_cost.name][:] = self.config_cost.W_eeff_ori[i]
-            self.data["W_e"][foot_cnt.eeff_orientation_cost.name][:] = self.config_cost.W_eeff_ori[i]
+            self.data["W_e"][foot_cnt.eeff_orientation_cost.name][:] = 10*self.config_cost.W_eeff_ori[i]
             
             # Foot force regularization weights
             self.data["W"][foot_cnt.f_reg.name] = np.array(self.config_cost.W_cnt_f_reg[i])
@@ -400,7 +404,7 @@ class QuadrupedAcadosSolver(AcadosSolverHelper):
         self.update_inputs()
         self.update_parameters()
         self.update_ref()
-        self.set_ref_terminal()
+        self.update_ref_terminal()
 
     @time_fn("init_solver")
     def init(self,

@@ -24,37 +24,37 @@ class Go2TrotCost(MPCCostConfig):
 
     # Updated base running cost weights
     W_base: np.ndarray = __init_np([
-        1e3, 2e3, 3e3,      # Base position weights
-        5e2, 1e3, 1e3,      # Base orientation (ypr) weights
-        5e2, 1e2, 3e2,      # Base linear velocity weights
-        1e1, 2e2, 1e2,      # Base angular velocity weights
+        1e3, 3e3, 1e2,      # Base position weights
+        5e2, 5e2, 5e2,      # Base orientation (ypr) weights
+        5e2, 1e1, 1e0,      # Base linear velocity weights
+        1e0, 2e1, 1e1,      # Base angular velocity weights
     ], 1.)
 
     # Updated base terminal cost weights
     W_e_base: np.ndarray = __init_np([
         1e1, 1e1, 1e3,      # Base position weights
-        1e1, 1e3, 1e3,      # Base orientation (ypr) weights
+        1e1, 1e2, 1e2,      # Base orientation (ypr) weights
         5e2, 5e2, 1e3,      # Base linear velocity weights
         1e1, 1e2, 1e2,      # Base angular velocity weights
     ], 1)
 
     # Joint running cost to nominal position and vel (hip, shoulder, elbow)
-    W_joint: np.ndarray = __init_np(HIP_SHOULDER_ELBOW_SCALE * N_FEET + [0.1] * len(HIP_SHOULDER_ELBOW_SCALE) * N_FEET, 25.)
+    W_joint: np.ndarray = __init_np(HIP_SHOULDER_ELBOW_SCALE * N_FEET + [0.03] * len(HIP_SHOULDER_ELBOW_SCALE) * N_FEET, 5.)
 
     # Joint terminal cost to nominal position and vel (hip, shoulder, elbow)
     W_e_joint: np.ndarray = __init_np(HIP_SHOULDER_ELBOW_SCALE * N_FEET  + [0.1] * len(HIP_SHOULDER_ELBOW_SCALE) * N_FEET, 1.)
 
     # Acceleration cost weights for joints (hip, shoulder, elbow)
-    W_acc: np.ndarray = __init_np(HIP_SHOULDER_ELBOW_SCALE * N_FEET, 1.0e-3)
+    W_acc: np.ndarray = __init_np(HIP_SHOULDER_ELBOW_SCALE * N_FEET, 5.0e-4)
 
     # swing cost weightsc
-    W_swing: np.ndarray = __init_np([5e4] * N_FEET)
+    W_swing: np.ndarray = __init_np([2e4] * N_FEET)
 
     # End effector orientation wrt normal at contact
     W_eeff_ori: np.ndarray = __init_np([1.] * N_FEET)
 
     # force regularization weights for each foot
-    W_cnt_f_reg: np.ndarray = __init_np([[0.03, 0.03, 0.05]] * N_FEET)
+    W_cnt_f_reg: np.ndarray = __init_np([[0.01, 0.01, 0.05]] * N_FEET)
 
     # Feet position constraint stability
     W_foot_pos_constr_stab: np.ndarray = __init_np([5e1] * N_FEET)

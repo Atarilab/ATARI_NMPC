@@ -8,18 +8,18 @@ from contact_tamp.traj_opt_acados.interface.acados_helper import HPIPM_MODE
 class MPCQuadrupedCyclic(MPCOptConfig):
     ### MPC Config
     # Time horizon (s)
-    time_horizon : float = 1.
+    time_horizon : float = 1.25
     # Number of optimization nodes
-    n_nodes : int = 30
+    n_nodes : int = 25
     # Replanning frequency
-    replanning_freq : int = 20
+    replanning_freq : int = 25
     # gain on joint position for torque PD
     Kp : float = 20.
     # gain on joint velocities for torque PD
     Kd : float = 1.75
     ### Solver Config
     # Recompile solver
-    recompile: bool = True
+    recompile: bool = False
     # Solver maximum SQP iterations
     max_iter : int = 1
     # Maximum qp iteration for one SQP step 

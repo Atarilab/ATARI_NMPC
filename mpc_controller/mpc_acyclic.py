@@ -38,7 +38,7 @@ class AcyclicMPC(LocomotionMPC):
             self.contact_planner.set_center_rot_size(cnt_center, cnt_rot, cnt_size)
             
     def set_convergence_on_first_iter(self):
-        N_SQP_FIRST = 50
+        N_SQP_FIRST = 60
         if self.first_solve:
             self.solver.set_max_iter(N_SQP_FIRST)
             self.solver.set_nlp_tol(self.solver.config_opt.nlp_tol)
