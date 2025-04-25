@@ -3,6 +3,7 @@ from typing import Any, List
 import time
 import sys
 import pinocchio as pin
+import threading
 
 from sdk_controller.abstract import SDKController
 from sdk_controller.robots import Go2
@@ -26,7 +27,7 @@ class MPC_SDK_ClimbBox(SDKController):
                  xml_path = "",
                  ):
         self.mpc = mpc
-        self.mpc.scale_joint = np.repeat([1.3, 1.15, 1.], 4)
+        self.mpc.scale_joint = np.repeat([1., 1., 1.], 4)
         
         super().__init__(simulate, robot_config, xml_path)
         self.box_size_xyz = np.array(box_size_xyz)
@@ -128,7 +129,7 @@ class MPC_SDK_ClimbBox(SDKController):
         # Set MPC contact plan
         node_sequence, nodes_per_phase = load_phase_sequence_from_yaml(self.solution_dir)
 
-        nodes_per_phase = 7
+        nodes_per_phase = 10
         start_phase = 0 # if node_sequence[0] else 1
         cnt_sequence, patches = self.get_sequence_patches_from_path(sequence[start_phase:], nodes_per_phase)
 
@@ -163,24 +164,26 @@ class MPC_SDK_ClimbBox(SDKController):
                 self.cmd.motor_cmd[i].tau = 0.0
                 
         else:
-            step = self.mpc.plan_step - 1
             self.mpc.tau_full.append(torques_ff)
             scale = 1. if self.simulate else self.robot_config.scale_gains
             for i, tau in enumerate(torques_ff, start=6):
                 i_act = self.joint_dof2act_id[i]
-                i_act = self.joint_dof2act_id[i]
-                self.cmd.motor_cmd[i_act].q = self.mpc.q_plan[step, i]
+                self.cmd.motor_cmd[i_act].q = self.mpc.q_plan[self.mpc.plan_step, i]
                 self.cmd.motor_cmd[i_act].kp = self.mpc.scale_joint[i-6] * self.robot_config.Kp * scale
-                self.cmd.motor_cmd[i_act].dq = self.mpc.v_plan[step, i]
+                self.cmd.motor_cmd[i_act].dq = self.mpc.v_plan[self.mpc.plan_step, i]
                 self.cmd.motor_cmd[i_act].kd = self.mpc.scale_joint[i-6] * self.robot_config.Kd * scale
                 max_tau = self.safety.torque_limits[i_act]
                 self.cmd.motor_cmd[i_act].tau = np.clip(tau, -max_tau, max_tau)
 
     def reset_controller(self):
         print("reset controller")
+        self.mpc.print_timings()
+        
+        # mpc_close_loop.plot_traj("q")
+        # mpc_close_loop.plot_traj("v")
+
         self.mpc.reset()
         self.surfaces = []
-        self.init_contact_plan()
 
 input("Press enter to start")
 runing_time = 0.0
@@ -204,7 +207,7 @@ if __name__ == "__main__":
         vicon = ViconHighStatePublisher(
             vicon_ip=VICON_IP,
             object_name=Go2.OBJECT_NAME,
-            publish_freq=Go2.CONTROL_FREQ,
+            publish_freq=Go2.CONTROL_FREQ * 2,
         )
         simulate = False
     
@@ -213,7 +216,7 @@ if __name__ == "__main__":
         mpc_close_loop,
         Go2,
         SOLUTION_DIR,
-        [EDGE, 2 * EDGE, HEIGHT],
+        [0.66, EDGE, HEIGHT],
         )
 
     dt = 1 / Go2.CONTROL_FREQ
@@ -221,18 +224,15 @@ if __name__ == "__main__":
         while True:
             step_start = time.perf_counter()
             
-            sdk_controller.send_motor_command(round(runing_time, 3))
+            sdk_controller.send_motor_command(round(runing_time, 4))
             
-            if runing_time > 10.:
-                sdk_controller.stand_up_running = False
-                sdk_controller.controller_running = False
-                sdk_controller.damping_running = True
-            elif runing_time > 3.5:
-                sdk_controller.stand_up_running = False
-                sdk_controller.controller_running = True
-            elif runing_time > 0.1:
-                sdk_controller.stand_up_running = True
-                
+            if simulate:
+                if runing_time > 3.5:
+                    sdk_controller.controller_running = True
+                    sdk_controller.stand_up_running = False
+                elif runing_time > 0.1:
+                    sdk_controller.stand_up_running = True
+                    
             runing_time += dt
             time_until_next_step = dt - (time.perf_counter() - step_start)
 

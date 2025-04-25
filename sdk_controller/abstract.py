@@ -101,7 +101,7 @@ class SDKController(SDKControllerBase):
                  xml_path : str = ""
                  ):
         self.simulate = simulate
-        self.use_angular_from_highstate = not self.simulate
+        self.use_angular_from_highstate = False #not self.simulate
         
         self.robot_config = robot_config
         # Init robot interface, init joint mapping
@@ -203,12 +203,15 @@ class SDKController(SDKControllerBase):
                     print("Waiting for stand up to finish")
 
     def update_q_v_from_lowstate(self):
-        """Extracts q (position) and v (velocity) from a Unitree LowState_ message."""       
-        if not self.use_angular_from_highstate:
+        """Extracts q (position) and v (velocity) from a Unitree LowState_ message."""
+        if self.simulate:
             # Base orientation (quaternion w, x, y, z)
             self._q[3:7] = self.last_low_state.imu_state.quaternion  # Quaternion order: w, x, y, z
+        else:
             # Base velocity (linear and angular) - extracted from IMU
-            self._v[3:6] = self.last_low_state.imu_state.gyroscope  # Angular velocity from IMU
+            alpha = 0.75
+            w = np.array(self.last_low_state.imu_state.gyroscope)  # Angular velocity from IMU
+            self._v[3:6] = alpha * w + (1-alpha) * self._v[3:6]
 
         # Joint positions and velocities
         for i, motor in enumerate(self.last_low_state.motor_state[:self.nu]):
@@ -239,12 +242,9 @@ class SDKController(SDKControllerBase):
         """Extracts q (position) and v (velocity) from a Unitree HighState_ message."""
         # Base position
         self._q[0:3] = self.last_high_state.position
+        self._q[3:7] = self.last_high_state.imu_state.quaternion
         self._v[0:3] = self.last_high_state.velocity
-        if self.use_angular_from_highstate:
-            # Base orientation (quaternion w, x, y, z)
-            self._q[3:7] = self.last_high_state.imu_state.quaternion
-            self._v[3:6] = self.last_high_state.imu_state.gyroscope
-        
+
     def send_motor_command(self, time : float):
 
         # Stand down

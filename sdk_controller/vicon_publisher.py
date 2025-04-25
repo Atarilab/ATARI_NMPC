@@ -34,7 +34,7 @@ class ViconHighStatePublisher:
             if self.vicon_frame_rate > 0:
                 self.vicon_dt = (1.0 / self.vicon_frame_rate)
             else:
-                self.vicon_dt = self.hight_state_dt * 1.5
+                self.vicon_dt = self.hight_state_dt * 2.
         else:
             raise RuntimeError(f"Failed to connect to Vicon at {self.vicon_ip}")
         
@@ -91,6 +91,8 @@ class ViconHighStatePublisher:
     def _update_angular_velocity(self):
         # local angular velocity
         dt = self.t - self.prev_prev_t
+        self.prev_w = self.w
+
         # first order finite difference for quaternions
         self.w = (2 / dt) * np.array([
             self.prev_prev_q[0]*self.q[1] - self.prev_prev_q[1]*self.q[0] - self.prev_prev_q[2]*self.q[3] + self.prev_prev_q[3]*self.q[2],
@@ -98,13 +100,21 @@ class ViconHighStatePublisher:
             self.prev_prev_q[0]*self.q[3] - self.prev_prev_q[1]*self.q[2] + self.prev_prev_q[2]*self.q[1] - self.prev_prev_q[3]*self.q[0]
             ])
 
-        self.w[self.w < 0.04] = 0.0
+        self.w[np.abs(self.w) < 0.02] = 0.0
+        # Apply second-order filtering to linear velocity
+        alpha = 0.3  # Smoothing factor (adjust as needed)
+        self.w = alpha * self.w + (1 - alpha) * self.prev_w
         
     def _update_linear_velocity(self):
         # global linear velocity
         avg_dt = (self.t - self.prev_prev_t) / 2.
         # Second order finite difference
+        self.prev_v = self.v
         self.v = (3 * self.p - 4 * self.prev_p + self.prev_prev_p) / (2 * avg_dt)
+
+        # Apply second-order filtering to linear velocity
+        alpha = 0.3  # Smoothing factor (adjust as needed)
+        self.v = alpha * self.v + (1 - alpha) * self.prev_v
         
     def _update_p_q_t(self, new_p : np.ndarray, new_q : np.ndarray, new_t : float):
         # time
@@ -274,7 +284,7 @@ class ViconRecorder(ViconHighStatePublisher):
 if __name__ == "__main__":
     VICON_IP = "192.168.123.100:801"
     OBJECT_NAME = "Go2"
-    RECORD_TIME = 50
+    RECORD_TIME = 15
     
     ChannelFactoryInitialize(1, "lo")
     vicon = ViconRecorder(VICON_IP, OBJECT_NAME)

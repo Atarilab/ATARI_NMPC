@@ -177,12 +177,16 @@ class LocomotionMPC(PinController):
         self.plan_step : int = 0
         self.current_opt_node : int = 0
         self.delay : int = 0
+        self.start_time = 0.
         
         # Init arrays
         self.v_des : np.ndarray = np.zeros(3)
         self.w_des : np.ndarray = np.zeros(3)
         self.base_ref_vel_tracking : np.ndarray = np.zeros(12)
-        self.n_interp_plan = round(self.config_opt.time_horizon / self.sim_dt)
+        self.n_interp_plan = round(self.config_opt.time_horizon / self.sim_dt) + 1
+        self.time_plan_base = np.linspace(0., self.config_opt.time_horizon, self.n_interp_plan)
+        self.time_plan = np.copy(self.time_plan_base)
+        self.time_sol = np.linspace(0., self.config_opt.time_horizon, self.config_opt.n_nodes + 1)
         self.id_repeat = np.int32(np.linspace(0, 1, self.n_interp_plan)*(self.config_opt.n_nodes-1))
         self.q_plan : np.ndarray = np.zeros((self.n_interp_plan, self.nv))
         self.v_plan : np.ndarray = np.zeros((self.n_interp_plan, self.nv))
@@ -192,6 +196,7 @@ class LocomotionMPC(PinController):
         self.qref_pd : np.ndarray = np.zeros((self.nq))
 
         # For plots
+        self.t_full = []
         self.q_plan_full = []
         self.q_full = []
         self.v_plan_full = []
@@ -234,7 +239,7 @@ class LocomotionMPC(PinController):
     def _step(self) -> None:
         self.increment_base_ref_position()
         self.sim_step += 1
-        self.plan_step += 1
+        # self.plan_step += 1
 
     def _record_plan(self) -> None:
         """
@@ -544,12 +549,11 @@ class LocomotionMPC(PinController):
             # Increment the optimization node every dt_nodes
             # TODO: This may be changed in case of dt time optimization
             # One may update the opt node according to the last dt results
-            if t >= (self.current_opt_node+1) * self.dt_nodes:
+            while t >= (self.current_opt_node) * self.dt_nodes:
                 self.current_opt_node += 1
         
         # Start a new optimization asynchronously if it's time to replan
         if self._replan():
-
             # Set solver parameters on first iteration
             self.set_convergence_on_first_iter()
             
@@ -575,29 +579,23 @@ class LocomotionMPC(PinController):
         if (self.plan_submitted and self.optimize_future.done()):
             try:
                 # Retrieve new plan from future
-                q_sol, v_sol, a_sol, f_sol, dt_sol = self.optimize_future.result()
-
-                # Record trajectory
-                if not self.first_solve:
-                    self._record_plan()
-
+                q_sol, v_sol, a_sol, f_sol, _ = self.optimize_future.result()
+                # if not self.first_solve:
+                #     self._record_plan()
+                
                 # Interpolate plan at sim_dt interval
-                self.q_plan[:], self.v_plan[:] = self.interpolate_state_trajectory(q_sol, v_sol, a_sol, dt_sol)
+                self.time_plan[:] = self.time_plan_base + self.start_time
+                self.q_plan[:], self.v_plan[:] = self.interpolate_trajectory_with_derivatives(self.time_sol, q_sol, v_sol, a_sol)
                 # Zero order interpolation (repeat) for actions
                 self.a_plan[:] = np.take_along_axis(a_sol, self.id_repeat.reshape(-1, 1), 0)
                 self.f_plan[:] = np.take_along_axis(f_sol, self.id_repeat.reshape(-1, 1, 1), 0)
 
-                # Apply delay, not for first iteration
-                if (self.solve_async and not self.first_solve):
-                    replanning_time = t - self.start_time
-                    # replanning_time -= 4.0e-3
-                    self.delay = math.ceil(replanning_time / self.sim_dt) - 1
-                else:
-                    self.delay = 0
-
-                self.plan_step = self.delay
+                if self.first_solve:
+                    self.t0 = sim_time
+                    
                 self.plan_submitted = False
                 self.first_solve = False
+                self.plan_step = 0
                 
                 # Plot current state vs optimization plan
                 # self.plot_current_vs_plan(q_mj, v_mj)
@@ -611,6 +609,11 @@ class LocomotionMPC(PinController):
                 self.executor.shutdown(wait=False, cancel_futures=True)
                 time.sleep(0.1)
                 
+        # Apply delay
+        if self.solve_async and not self.first_solve:
+            while t >= self.time_plan[self.plan_step]:
+                self.plan_step += 1
+                
         # Wait for to solver to plan the first trajectory -> PD controller
         if self.first_solve:
             torques_ff = np.zeros(self.nu)
@@ -621,8 +624,11 @@ class LocomotionMPC(PinController):
         # Compute inverse dynamics torques from solver
         else:
             # Record true state
+            self.t_full.append(sim_time)
             self.q_plan_full.append(q.copy())
-            self.v_plan_full.append(v)
+            self.v_plan_full.append(v.copy())
+            self.q_full.append(self.q_plan[self.plan_step].copy())
+            self.v_full.append(self.v_plan[self.plan_step].copy())
             torques_ff = self.solver.dyn.id_torques(
                 q, #self.q_plan[self.plan_step],
                 v, #self.v_plan[self.plan_step],
@@ -712,9 +718,9 @@ class LocomotionMPC(PinController):
 
         # Plot each dimension of the plan on a separate subplot
         for i in range(num_dimensions):
-            axs[i].plot(time, traj[:, i])
+            axs[i].plot(self.t_full, traj[:, i])
             if plan_full is not None:
-                axs[i].plot(time, plan_full[:, i])
+                axs[i].plot(self.t_full, plan_full[:, i])
             axs[i].set_title(f'{var_name} dimension {i+1}')
             axs[i].set_xlabel('Time (s)')
             axs[i].set_ylabel(f'{var_name} values')
@@ -725,9 +731,10 @@ class LocomotionMPC(PinController):
             fig.delaxes(axs[i])
 
         plt.tight_layout()
+        plt.savefig(f"{var_name}.png")
     
     def show_plots(self):
-        plt.show()
+        plt.show()       
 
     def print_timings(self):
         print()

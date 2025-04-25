@@ -17,17 +17,17 @@ BASE_SAVE_DIR = "data"
 ROBOT_NAME = Go2.ROBOT_NAME
 SIM_DT = 1 / Go2.CONTROL_FREQ
 # CLOSE LOOP MPC
-DT = 0.035
-N_NODES_MPC = 35
+DT = 0.03
+N_NODES_MPC = 50
 # TRAJ OPT
 RECOMPILE = False
 N_NODES_SOLVER = 50
 MAX_IT = 75
-MAX_QP = 6
+MAX_QP = 7
 # SCENE PARAM
 HEIGHT = 0.18
-EDGE = 0.48
-OFFSET = 0.42
+EDGE = 0.4
+OFFSET = 0.4
 
 robot_description = get_robot_description(ROBOT_NAME)
 mj_feet_frames = ["FL", "FR", "RL", "RR"]
@@ -71,25 +71,25 @@ def __init_np(l : List, scale : float=1.):
     return np.array(l) * scale
 
 W = [
-        0e0, 0e0, 1e0,      # Base position weights
-        1e1, 2e1, 4e1,      # Base orientation (ypr) weights
-        1e0, 1e0, 1e0,      # Base linear velocity weights
-        1e0, 2e1, 3e1,      # Base angular velocity weights
+        0e0, 0e0, 0e0,      # Base position weights
+        1e1, 2e1, 3e1,      # Base orientation (ypr) weights
+        1e-1, 1e-1, 1e-1,      # Base linear velocity weights
+        1e-1, 5e-1, 1e0,      # Base angular velocity weights
     ]
 
-HSE_SCALE = [15., 10., 1.] *  n_feet
+HSE_SCALE = [20., 10., 1.] *  n_feet
 config_cost = MPCCostConfig(
     robot_name=ROBOT_NAME,
     gait_name="",
     W_e_base=__init_np(W, 1.),
-    W_base=__init_np(W, 15.),
+    W_base=__init_np(W, 150.),
     W_joint=__init_np(HSE_SCALE + [0.05] * len(HSE_SCALE), 15.),
-    W_e_joint=__init_np(HSE_SCALE + [0.01] * len(HSE_SCALE), 1.),
-    W_acc=__init_np(HSE_SCALE, 1.e-4),
-    W_swing=__init_np([1.5e4] * n_feet),
-    W_eeff_ori=__init_np([1e1] * n_feet),
-    W_cnt_f_reg = __init_np([[0.1, 0.1, 0.05]] * n_feet),
-    W_foot_pos_constr_stab = __init_np([1e3] * n_feet),
+    W_e_joint=__init_np(HSE_SCALE + [0.001] * len(HSE_SCALE), .1),
+    W_acc=__init_np([1]*12, 7.e-3),
+    W_swing=__init_np([2e4] * n_feet),
+    W_eeff_ori=__init_np([3e2] * n_feet),
+    W_cnt_f_reg = __init_np([[0.2, 0.2, 0.05]] * n_feet),
+    W_foot_pos_constr_stab = __init_np([3e3] * n_feet),
     W_foot_displacement = __init_np([0.]),
     cnt_radius = 0.015, # m
     time_opt = __init_np([1.0e4]),
@@ -103,7 +103,7 @@ config_gait = GaitConfig(
     np.array([0.1, 0.1, 0.1, 0.1]),
     np.array([0.1, 0.1, 0.1, 0.1]),
     0.3 + HEIGHT,
-    0.06,
+    0.075,
 )
 
 mpc_close_loop = AcyclicMPC(
@@ -166,9 +166,11 @@ sequence = [
     (7, (1, 1, 1, 1), (1, 1, 0, 0)),
     (8, (1, 1, 0, 1), (1, 1, 0)),
     (9, (1, 1, 1, 1), (1, 1, 1, 0)),
-    (10, (1, 0, 1, 1), (1, 1, 0)),
-    (10, (0, 1, 1, 1), (1, 1, 0)),
-    (10, (1, 1, 1, 0), (1, 1, 1)),
+    # (10, (1, 0, 1, 1), (1, 1, 0)),
+    # (10, (0, 1, 1, 1), (1, 1, 0)),
     (11, (0, 1, 1, 1), (1, 1, 1)),
+    (10, (1, 1, 1, 0), (1, 1, 1)),
+    (10, (1, 1, 1, 0), (1, 1, 1)),
+    (9, (1, 1, 1, 1), (1, 1, 1, 1)),
     (12, (1, 1, 1, 1), (1, 1, 1, 1))
     ]

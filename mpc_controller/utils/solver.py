@@ -38,8 +38,8 @@ class QuadrupedAcadosSolver(AcadosSolverHelper):
             path_urdf,
             self.feet_frame_names,
             True,
-            mu_contact=0.7,
-            torque_limit=False
+            mu_contact=0.65,
+            torque_limit=True
             )
 
         dt_min, dt_max = self.config_opt.get_dt_bounds()
