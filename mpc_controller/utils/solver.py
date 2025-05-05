@@ -137,8 +137,15 @@ class QuadrupedAcadosSolver(AcadosSolverHelper):
 
             # Foot displacement penalization
             if self.restrict_cnt:
+                
                 self.data["W"][foot_cnt.pos_cost.name][:2] = self.config_cost.W_foot_displacement[0]
-                self.data["W_e"][foot_cnt.pos_cost.name][:2] = self.config_cost.W_foot_displacement[0]
+                self.data["W_e"][foot_cnt.pos_cost.name][:2] = self.config_cost.W_foot_displacement[0]                
+                self.data["W"][foot_cnt.v_swing.name][:] = self.config_cost.W_swing_v
+                self.data["W_e"][foot_cnt.v_swing.name][:] = self.config_cost.W_swing_v
+                self.data["W"][foot_cnt.below_plane.name][:] = self.config_cost.W_below_plane
+                self.data["W_e"][foot_cnt.below_plane.name][:] = self.config_cost.W_below_plane
+                self.data["W"][foot_cnt.plane_border.name][:] = self.config_cost.W_plane_border
+                self.data["W_e"][foot_cnt.plane_border.name][:] = self.config_cost.W_plane_border
             else:
                 self.data["W"][foot_cnt.pos_cost.name][:] = 0.
                 self.data["W_e"][foot_cnt.pos_cost.name][:] = 0.
@@ -293,7 +300,6 @@ class QuadrupedAcadosSolver(AcadosSolverHelper):
                             patch_center : np.ndarray,
                             patch_rot : np.ndarray,
                             patch_size : np.ndarray,
-                            size_margin : float = 0.03,
                             ):
         """
         Set contact patch restriction for each end effectors.
@@ -323,7 +329,7 @@ class QuadrupedAcadosSolver(AcadosSolverHelper):
             self.params[foot_cnt.plane_rot.name][ :3, :] = patch_rot[i_foot, :, :, 0].T
             self.params[foot_cnt.plane_rot.name][3:6, :] = patch_rot[i_foot, :, :, 1].T
             self.params[foot_cnt.plane_rot.name][6:9, :] = patch_rot[i_foot, :, :, 2].T
-            self.params[foot_cnt.size.name][:] = patch_size[i_foot].T - size_margin
+            self.params[foot_cnt.size.name][:] = patch_size[i_foot].T
         
     def print_contact_constraints(self):
         print()

@@ -136,6 +136,12 @@ class MPCCostConfig:
     reg_eps: float
     # Reguralization terminal cost
     reg_eps_e: float
+    # Swing velocity
+    W_swing_v : float = 0.
+    # Get away from plane border 
+    W_plane_border : float = 0.
+    # Below plane cost
+    W_below_plane : float = 0.
     
     def __post_init__(self):
         assert len(self.W_e_base) == 12, "W_e_base must be of shape 12"
