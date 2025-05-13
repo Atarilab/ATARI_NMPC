@@ -25,8 +25,8 @@ P_IMU_IN_BASE = np.array([-0.02557, 0, 0.04232])
 R_IMU_IN_BASE = np.eye(3)
 
 CONTROL_FREQ = 100
-Kp = 15
-Kd = 1.2
+Kp = 15.
+Kd = 1.5
 
 # Multiply gain on the real robot
 scale_gains = 1.15
