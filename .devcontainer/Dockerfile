@@ -1,5 +1,5 @@
 # Base image
-FROM nvidia/cuda:12.2.0-base-ubuntu22.04
+FROM ubuntu:22.04
 
 # Set noninteractive environment for apt
 ENV DEBIAN_FRONTEND=noninteractive
