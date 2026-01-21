@@ -5,6 +5,15 @@ Atarilab NMPC
 ATARI_NMPC is a Nonlinear Model Predictive Control (NMPC) framework designed for quadruped robots. It leverages the Acados solver for efficient optimization and Pinocchio for robot dynamics. The framework is modular, allowing easy adaptation to different quadruped robots by configuring URDF paths, gait parameters, and control settings.
 
 ## Project Dependencies
+
+### Docker Image
+
+To ease the installation process, a `Dockerfile` is provided [here](.devcontainer/Dockerfile).
+It was configured to be used with the [Dev Container extension](https://code.visualstudio.com/docs/devcontainers/containers) of VSCode.
+Once the repo opened in VSCode simply build the container (Ctrl+Shift+P, Rebuild Container Without Cache). Nothing more should be needed to setup the environment.
+
+### Local Instal
+
 - Conda environment is provided in `environment.yml`
     ```bash
     conda env create -n atari_nmpc -f environment.yml python=3.10
@@ -34,6 +43,52 @@ ATARI_NMPC is a Nonlinear Model Predictive Control (NMPC) framework designed for
     # In the Conda environment
     pip install -e ./mj_pin_utils
     ```
+
+## Running the MPC
+
+### Without controller
+
+Simply run `main.py`. It will run the mpc real-time in close-loop on a forward trotting task.
+One can push the robot in the MuJoCo viewer.
+The first time you run it will take some time (minutes) as the solver has to be compiled. Once the MPC has been compiled once, you can set `recompile=False` in the [config_opt.py](mpc_controller/config/quadruped/mpc_opt.py) file.
+```
+python3 main.py
+```
+
+### Deploy on the real robot
+
+The framework to deploy on the real robot can be tested in simulation first, simply by running a simulation node instead of the real robot. We used the [unitree_mujoco](https://github.com/unitreerobotics/unitree_mujoco) repo to do so.
+
+**A Xbox joystick is required for the following steps!**
+See the [unitree_mujoco](https://github.com/unitreerobotics/unitree_mujoco) repo to use a different controller.
+
+#### Test in simulation first
+
+1. First run the simulation node.
+```
+python3 run_unitree_mujoco.py
+```
+2. Then run the controller node.
+```
+python3 run_sdk_controller.py
+```
+
+On the Xbox controller:
+- Y: stand up
+- A: stand down
+- B: damping mode
+- X: run the controller
+- joystick left: direction
+- joystick right: orientation
+
+#### On the real robot
+
+Set the vicon IP in [run_sdk_controller.py](run_sdk_controller.py).
+
+To run on the real robot, simply specify the name of the network card connected to the robot (here *enp3s0* as an example).
+```
+python3 run_sdk_controller.py enp3s0
+```
 
 
 ## Configuration Files
