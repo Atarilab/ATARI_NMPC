@@ -1,0 +1,263 @@
+<mujoco model="g1_biped">
+  <!-- 1) 基础设置 -->
+  <compiler angle="radian" meshdir="meshes"/>
+  <!-- TODO:Joint damping, ground frictions, see Mujoco Menagie -->
+  <!-- Update:   intergrate scene inside (friction ground)-->
+  <!-- 2) 资产：各种 mesh 与纹理 -->
+  <!-- -0.032 -->
+  <asset>
+    <!-- 下肢和躯干相关 mesh -->
+    <mesh name="pelvis" file="pelvis.STL"/>
+    <mesh name="pelvis_contour_link" file="pelvis_contour_link.STL"/>
+    <mesh name="left_hip_pitch_link" file="left_hip_pitch_link.STL"/>
+    <mesh name="left_hip_roll_link" file="left_hip_roll_link.STL"/>
+    <mesh name="left_hip_yaw_link" file="left_hip_yaw_link.STL"/>
+    <mesh name="left_knee_link" file="left_knee_link.STL"/>
+    <mesh name="left_ankle_pitch_link" file="left_ankle_pitch_link.STL"/>
+    <mesh name="left_ankle_roll_link" file="left_ankle_roll_link.STL"/>
+    <mesh name="right_hip_pitch_link" file="right_hip_pitch_link.STL"/>
+    <mesh name="right_hip_roll_link" file="right_hip_roll_link.STL"/>
+    <mesh name="right_hip_yaw_link" file="right_hip_yaw_link.STL"/>
+    <mesh name="right_knee_link" file="right_knee_link.STL"/>
+    <mesh name="right_ankle_pitch_link" file="right_ankle_pitch_link.STL"/>
+    <mesh name="right_ankle_roll_link" file="right_ankle_roll_link.STL"/>
+    <!-- 腰部、躯干、LOGO、头部 -->
+    <mesh name="torso_link" file="torso_link.STL"/>
+    <mesh name="waist_yaw_link" file="waist_yaw_link.STL"/>
+    <mesh name="logo_link" file="logo_link.STL"/>
+    <mesh name="head_link" file="head_link.STL"/>
+    <mesh name="waist_support_link" file="waist_support_link.STL"/>
+  </asset>
+
+  <!-- 3) 主要 robot + 环境放在 worldbody -->
+  <worldbody>
+    <!-- 3.1) 地面、光源等环境设置 -->
+    <light pos="1 0 3.5" dir="0 0 -1" directional="true"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane" friction="0.9 0.01 0.001"
+          contype="1" conaffinity="1"/>
+
+    <!-- 3.2) 机器人主体：pelvis + 下肢 + 躯干(删除腰yaw) + 头部/LOGO/IMU... -->
+    <body name="pelvis" pos="0 0 0.791"> 
+    <!-- pos 0 0 0.793 original -->
+      <inertial pos="0 0 -0.07605" quat="1 0 0 0"
+                mass="3.813" diaginertia="0.010549 0.0093089 0.0079184"/>
+      <joint name="floating_base_joint" type="free" limited="false" actuatorfrclimited="false"/>
+
+      <!-- pelvis外观 --> 
+      <geom type="mesh" mesh="pelvis" contype="1" conaffinity="1"
+            density="0" rgba="0.2 0.2 0.2 1"/>
+      <geom type="mesh" mesh="pelvis_contour_link" contype="1" conaffinity="1"
+            density="0" rgba="0.7 0.7 0.7 1"/>
+      
+      <!-- pelvis上的 IMU site -->
+      <site name="imu_in_pelvis" size="0.01" pos="0.04525 0 -0.08339"/>
+
+      <!-- ~~~~~~~~~~~ 左腿 ~~~~~~~~~~~ -->
+      <body name="left_hip_pitch_link" pos="0 0.064452 -0.1027">
+        <inertial pos="0.002741 0.047791 -0.02606" quat="1 0 0 0"
+                  mass="1.35" diaginertia="0.00181517 0.00153422 0.00116212"/>
+        <joint name="left_hip_pitch_joint" type="hinge" axis="0 1 0" range="-2.5307 2.8798"/>
+        <geom type="mesh" mesh="left_hip_pitch_link" contype="1" conaffinity="1"
+              density="0" rgba="0.2 0.2 0.2 1"/>
+
+        <body name="left_hip_roll_link" pos="0 0.052 -0.030465" quat="1 0 0 0">
+          <inertial pos="0.029812 -0.001045 -0.087934" quat="1 0 0 0"
+                    mass="1.52" diaginertia="0.00254986 0.00241169 0.00148755"/>
+          <joint name="left_hip_roll_joint" type="hinge" axis="1 0 0" range="-0.5236 2.9671"/>
+          <geom type="mesh" mesh="left_hip_roll_link" contype="1" conaffinity="1"
+                density="0" rgba="0.7 0.7 0.7 1"/>
+
+          <!-- =======================
+               LEFT HIP YAW JOINT REMOVED
+               Instead of <joint ... range="0 0"/>,
+               we just remove the joint line. 
+               We keep this body as a static child of 'left_hip_roll_link'.
+               If you prefer, you can even remove the entire 'left_hip_yaw_link' body 
+               and move its <geom> into this same body. 
+               Below we just keep it as a separate body for structure 
+               but with no joint => no DOF.
+          ======================= -->
+          <body name="left_hip_yaw_link" pos="0.025001 0 -0.12412">
+            <inertial pos="-0.057709 -0.010981 -0.15078" quat="1 0 0 0"
+                      mass="1.702" diaginertia="0.00776166 0.00717575 0.00160139"/>
+            <!-- REMOVED JOINT: <joint name="left_hip_yaw_joint" ... > -->
+            <geom type="mesh" mesh="left_hip_yaw_link" contype="1" conaffinity="1"
+                  density="0" rgba="0.7 0.7 0.7 1"/>
+
+            <body name="left_knee_link" pos="-0.078273 0.0021489 -0.17734">
+              <inertial pos="0.005457 0.003964 -0.12074" quat="1 0 0 0"
+                        mass="1.932" diaginertia="0.0113804 0.0112778 0.00146458"/>
+              <joint name="left_knee_joint" type="hinge" axis="0 1 0" range="-0.087267 2.8798"/>
+              <geom type="mesh" mesh="left_knee_link" contype="1" conaffinity="1"
+                    density="0" rgba="0.7 0.7 0.7 1"/>
+
+              <body name="left_ankle_pitch_link" pos="0 -9.4445e-05 -0.30001">
+                <inertial pos="-0.007269 0 0.011137" quat="1 0 0 0"
+                          mass="0.074" diaginertia="1.89e-05 1.40805e-05 6.9195e-06"/>
+                <joint name="left_ankle_pitch_joint" type="hinge" axis="0 1 0"
+                       range="-0.87267 0.5236"/>
+                <geom type="mesh" mesh="left_ankle_pitch_link" contype="1" conaffinity="1"
+                      density="0" rgba="0.7 0.7 0.7 1"/>
+
+                <body name="left_ankle_roll_link" pos="0 0 -0.017558">
+                  <inertial pos="0.026505 0 -0.016425" quat="1 0 0 0"
+                            mass="0.608" diaginertia="0.00167218 0.0016161 0.000217621"/>
+                  <!-- <joint name="left_ankle_roll_joint" type="hinge" axis="1 0 0" range="0 0"/> -->
+                  <geom type="mesh" mesh="left_ankle_roll_link" friction="0.8 0.01 0.0005"
+                  contype="1" conaffinity="1"
+                        density="0" rgba="0.2 0.2 0.2 1"/>
+                  <geom size="0.005" pos="-0.05 0.025 -0.03" contype="1" conaffinity="1"
+                        rgba="0.2 0.2 0.2 1"/>
+                  <geom size="0.005" pos="-0.05 -0.025 -0.03" contype="1" conaffinity="1"
+                        rgba="0.2 0.2 0.2 1"/>
+                  <geom size="0.005" pos="0.12 0.03 -0.03" contype="1" conaffinity="1"
+                        rgba="0.2 0.2 0.2 1"/>
+                  <geom size="0.005" pos="0.12 -0.03 -0.03" contype="1" conaffinity="1"
+                        rgba="0.2 0.2 0.2 1"/>
+                  <!-- ADDED for foot_end_effector -->
+                  <body name="left_foot_end_effector_link" pos="0 0 -0.032">
+                    <inertial pos="0 0 0" quat="1 0 0 0"
+                              mass="0.0001" diaginertia="1e-7 1e-7 1e-7"/>
+                    <geom name="left_foot_end_effector_geom" type="box" size="0.02 0.02 0.003"
+                          pos="0 0 0" density="0"  rgba="1 0 0 0.5" />
+                  </body>
+                 </body>
+                  <!-- end ADDED -->
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <!-- ~~~~~~~~~~~ 右腿 ~~~~~~~~~~~ -->
+      <body name="right_hip_pitch_link" pos="0 -0.064452 -0.1027">
+        <inertial pos="0.002741 -0.047791 -0.02606" quat="1 0 0 0"
+                  mass="1.35" diaginertia="0.00181517 0.00153422 0.00116212"/>
+        <joint name="right_hip_pitch_joint" type="hinge" axis="0 1 0" range="-2.5307 2.8798"/>
+        <geom type="mesh" mesh="right_hip_pitch_link" contype="1" conaffinity="1"
+              density="0" rgba="0.2 0.2 0.2 1"/>
+
+        <body name="right_hip_roll_link" pos="0 -0.052 -0.030465" quat="1 0 0 0">
+          <inertial pos="0.029812 0.001045 -0.087934" quat="1 0 0 0"
+                    mass="1.52" diaginertia="0.00254986 0.00241169 0.00148755"/>
+          <joint name="right_hip_roll_joint" type="hinge" axis="1 0 0" range="-2.9671 0.5236"/>
+          <geom type="mesh" mesh="right_hip_roll_link" contype="1" conaffinity="1"
+                density="0" rgba="0.7 0.7 0.7 1"/>
+
+          <!-- =======================
+               RIGHT HIP YAW JOINT REMOVED
+          ======================= -->
+          <body name="right_hip_yaw_link" pos="0.025001 0 -0.12412">
+            <inertial pos="-0.057709 0.010981 -0.15078" quat="1 0 0 0"
+                      mass="1.702" diaginertia="0.00776166 0.00717575 0.00160139"/>
+            <!-- REMOVED JOINT: <joint name="right_hip_yaw_joint" ... > -->
+            <geom type="mesh" mesh="right_hip_yaw_link" contype="1" conaffinity="1"
+                  density="0" rgba="0.7 0.7 0.7 1"/>
+
+            <body name="right_knee_link" pos="-0.078273 -0.0021489 -0.17734">
+              <inertial pos="0.005457 -0.003964 -0.12074" quat="1 0 0 0"
+                        mass="1.932" diaginertia="0.011374 0.0112843 0.00146452"/>
+              <joint name="right_knee_joint" type="hinge" axis="0 1 0" range="-0.087267 2.8798"/>
+              <geom type="mesh" mesh="right_knee_link" contype="1" conaffinity="1"
+                    density="0" rgba="0.7 0.7 0.7 1"/>
+
+              <body name="right_ankle_pitch_link" pos="0 9.4445e-05 -0.30001">
+                <inertial pos="-0.007269 0 0.011137" quat="1 0 0 0"
+                          mass="0.074" diaginertia="1.89e-05 1.40805e-05 6.9195e-06"/>
+                <joint name="right_ankle_pitch_joint" type="hinge" axis="0 1 0"
+                       range="-0.87267 0.5236"/>
+                <geom type="mesh" mesh="right_ankle_pitch_link" contype="1" conaffinity="1"
+                      density="0" rgba="0.7 0.7 0.7 1"/>
+
+                <body name="right_ankle_roll_link" pos="0 0 -0.017558">
+                  <inertial pos="0.026505 0 -0.016425" quat="1 0 0 0"
+                            mass="0.608" diaginertia="0.00167218 0.0016161 0.000217621"/>
+                  <!-- <joint name="right_ankle_roll_joint" type="hinge" axis="1 0 0" range="0 0"/> -->
+                  <geom type="mesh" mesh="right_ankle_roll_link" contype="1" conaffinity="1"
+                  	friction="0.8 0.01 0.0005"
+                        density="0" rgba="0.2 0.2 0.2 1"/>
+                  <geom size="0.005" pos="-0.05 0.025 -0.03" contype="1" conaffinity="1"
+                        rgba="0.2 0.2 0.2 1"/>
+                  <geom size="0.005" pos="-0.05 -0.025 -0.03" contype="1" conaffinity="1"
+                        rgba="0.2 0.2 0.2 1"/>
+                  <geom size="0.005" pos="0.12 0.03 -0.03" contype="1" conaffinity="1"
+                        rgba="0.2 0.2 0.2 1"/>
+                  <geom size="0.005" pos="0.12 -0.03 -0.03" contype="1" conaffinity="1"
+                        rgba="0.2 0.2 0.2 1"/>
+               
+                  <body name="right_foot_end_effector_link" pos="0 0 -0.032">
+                    <inertial pos="0 0 0" quat="1 0 0 0"
+                              mass="0.0001" diaginertia="1e-7 1e-7 1e-7"/>
+                    <geom name="right_foot_end_effector_geom" type="box" size="0.02 0.02 0.003"
+                          pos="0 0 0" density="0"  rgba="0 0 1 0.5" />
+                  </body>
+               
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <!-- 躯干 ~ 删除 waist_yaw_joint-->
+      <body name="torso_link" pos="-0.0039635 0 0.054">
+        <inertial pos="0.0034309 0.00025505 0.174524" quat="1 0 0 0"
+                  mass="9.842" diaginertia="0.135151 0.123088 0.0327256"/>
+        <!-- REMOVED JOINT: <joint name="waist_yaw_joint" ... range="0 0"/> -->
+        <geom type="mesh" mesh="torso_link" contype="1" conaffinity="1"
+              density="0" rgba="0.7 0.7 0.7 1"/>
+        <geom pos="0.0039635 0 -0.054" type="mesh" mesh="waist_yaw_link"
+              contype="1" conaffinity="1" density="0" rgba="0.7 0.7 0.7 1"/>
+        <geom pos="0.0039635 0 -0.054" type="mesh" mesh="logo_link"
+              contype="1" conaffinity="1" density="0" rgba="0.2 0.2 0.2 1"/>
+        <geom pos="0.0039635 0 -0.054" type="mesh" mesh="head_link"
+              contype="1" conaffinity="1" density="0" rgba="0.2 0.2 0.2 1"/>
+        <geom pos="0.0039635 0 -0.054" type="mesh" mesh="waist_support_link"
+              contype="1" conaffinity="1" density="0" rgba="0.7 0.7 0.7 1"/>
+        <site name="imu_in_torso" size="0.01" pos="-0.03959 -0.00224 0.13792"/>
+      </body>
+
+    </body>
+  </worldbody>
+  
+ 
+  <!-- 4) Actuator: 只保留8个下肢关节的motor (不变) -->
+  <actuator>
+    <!-- 左腿 -->
+    <motor name="left_hip_pitch_motor" joint="left_hip_pitch_joint"/>
+    <motor name="left_hip_roll_motor" joint="left_hip_roll_joint"/>
+    <motor name="left_knee_motor" joint="left_knee_joint"/>
+    <motor name="left_ankle_pitch_motor" joint="left_ankle_pitch_joint"/>
+    <!-- 右腿 -->
+    <motor name="right_hip_pitch_motor" joint="right_hip_pitch_joint"/>
+    <motor name="right_hip_roll_motor" joint="right_hip_roll_joint"/>
+    <motor name="right_knee_motor" joint="right_knee_joint"/>
+    <motor name="right_ankle_pitch_motor" joint="right_ankle_pitch_joint"/>
+  </actuator>
+
+  <!-- 5) 传感器（IMU等） -->
+  <sensor>
+    <gyro name="imu-torso-angular-velocity" site="imu_in_torso" noise="5e-4" cutoff="34.9"/>
+    <accelerometer name="imu-torso-linear-acceleration" site="imu_in_torso" noise="1e-2" cutoff="157"/>
+    <gyro name="imu-pelvis-angular-velocity" site="imu_in_pelvis" noise="5e-4" cutoff="34.9"/>
+    <accelerometer name="imu-pelvis-linear-acceleration" site="imu_in_pelvis" noise="1e-2" cutoff="157"/>
+  </sensor>
+
+  <!-- 6) 场景统计、可视化、纹理等 -->
+  <statistic center="1.0 0.7 1.0" extent="0.8"/>
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.1 0.1 0.1" specular="0.9 0.9 0.9"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="-140" elevation="-20"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="flat" rgb1="0 0 0" rgb2="0 0 0" width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge"
+             rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8"
+             width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true"
+              texrepeat="5 5" reflectance="0.2"/>
+  </asset>
+</mujoco>
+

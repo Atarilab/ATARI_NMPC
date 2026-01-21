@@ -1,6 +1,0 @@
-[submodule "contact_tamp"]
-	path = contact_tamp
-	url = git@github.com:Atarilab/contact_tamp.git
-[submodule "ros2-controller"]
-	path = ros2-controller
-	url = git@github.com:Atarilab/ros2-controller.git
